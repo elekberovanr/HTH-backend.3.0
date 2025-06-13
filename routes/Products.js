@@ -13,7 +13,10 @@ const {
 } = require('../controllers/productController');
 
 // Yeni məhsul (şəkil ilə)
+
 router.post('/', authMiddleware, upload.single('image'), addProduct);
+
+router.put('/:id', authMiddleware, upload.single('image'), updateProduct);
 
 // Bütün məhsullar
 router.get('/', getProducts);
@@ -23,6 +26,8 @@ router.get('/:id', getProductById);
 
 // İstifadəçinin öz məhsulları
 router.get('/my/products', authMiddleware, getMyProducts);
+
+
 
 // Redaktə və 🗑 Silmək
 router.put('/:id', authMiddleware, updateProduct);

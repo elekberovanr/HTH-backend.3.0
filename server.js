@@ -2,12 +2,16 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
-
 const app = express(); 
+const chatRoutes = require('./routes/Chat');
+const paymentRoutes = require('./routes/Payment');
+const categoryRoutes = require('./routes/Category');
 
+app.use('/api/categories', categoryRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/payment', paymentRoutes);
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads')); 
