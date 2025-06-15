@@ -21,13 +21,12 @@ router.put('/:id', authMiddleware, upload.single('image'), updateProduct);
 // Bütün məhsullar
 router.get('/', getProducts);
 
-// Məhsul detalları
-router.get('/:id', getProductById);
+
 
 // İstifadəçinin öz məhsulları
 router.get('/my/products', authMiddleware, getMyProducts);
 
-
+router.get('/:id', getProductById);
 
 // Redaktə və 🗑 Silmək
 router.put('/:id', authMiddleware, updateProduct);

@@ -1,15 +1,17 @@
 const Product = require('../models/Product');
+
+// ADD
 exports.addProduct = async (req, res) => {
   try {
-    const { title, description, category } = req.body; // 🆕 category də gəlsin
+    const { title, description, category } = req.body;
     const image = req.file ? req.file.filename : null;
 
     const product = await Product.create({
       title,
       description,
+      category,
       image,
-      owner: req.userId,
-      category, 
+      user: req.userId, // düz sahə adı
     });
 
     res.status(201).json(product);
@@ -19,79 +21,88 @@ exports.addProduct = async (req, res) => {
   }
 };
 
-
+// GET
 exports.getProducts = async (req, res) => {
-    try {
-        const products = await Product.find().populate('owner', 'username email');
-        res.json(products);
-    } catch (err) {
-        console.error('Get products error:', err);
-        res.status(500).json({ error: 'Could not fetch products' });
-    }
+  try {
+    const products = await Product.find()
+      .populate('user', 'username profileImage')
+      .sort({ createdAt: -1 });
+
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: 'Məhsullar alınmadı' });
+  }
 };
 
-
+// DELETE
 exports.deleteProduct = async (req, res) => {
-    try {
-        const product = await Product.findById(req.params.id);
-        if (!product) return res.status(404).json({ error: 'Product not found' });
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
 
-        // Yalnız məhsulun sahibi silə bilər
-        if (product.owner.toString() !== req.userId) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        await product.deleteOne();
-        res.json({ message: 'Product deleted' });
-    } catch (err) {
-        console.error('Delete product error:', err);
-        res.status(500).json({ error: 'Product delete failed' });
+    if (!product.user || product.user._id?.toString() !== req.userId?.toString()) {
+      return res.status(403).json({ error: 'Silməyə icazə yoxdur' });
     }
+
+
+    await product.deleteOne();
+    res.json({ message: 'Product deleted' });
+  } catch (err) {
+    console.error('Delete product error:', err);
+    res.status(500).json({ error: 'Product delete failed' });
+  }
 };
 
-
+// UPDATE
 exports.updateProduct = async (req, res) => {
-  const product = await Product.findById(req.params.id);
-  if (!product || product.owner.toString() !== req.userId) {
-    return res.status(403).json({ error: 'İcazəsiz' });
+  try {
+    const { title, description, category } = req.body;
+    const image = req.file ? req.file.filename : undefined;
+
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+
+    if (product.user.toString() !== req.userId) {
+      return res.status(403).json({ error: 'Redaktəyə icazə yoxdur' });
+    }
+
+    product.title = title;
+    product.description = description;
+    product.category = category;
+    if (image) product.image = image;
+
+    await product.save();
+    res.json(product);
+  } catch (err) {
+    console.error('Update product error:', err);
+    res.status(500).json({ error: 'Product update failed' });
   }
-
-  product.title = req.body.title || product.title;
-  product.description = req.body.description || product.description;
-  product.category = req.body.category || product.category; // 🆕
-
-  if (req.file) {
-    product.image = req.file.filename;
-  }
-
-  await product.save();
-  res.json(product);
 };
 
 
 // 🔍 Məhsul detalları (ID ilə)
 exports.getProductById = async (req, res) => {
-    try {
-      const product = await Product.findById(req.params.id).populate('owner', 'username email');
-      if (!product) return res.status(404).json({ error: 'Product not found' });
-      res.json(product);
-    } catch (err) {
-      console.error('Get product by ID error:', err);
-      res.status(500).json({ error: 'Failed to fetch product' });
-    }
-  };
-  
-  // 👤 İstifadəçinin öz məhsulları
-  exports.getMyProducts = async (req, res) => {
-    try {
-      const myProducts = await Product.find({ owner: req.userId });
-      res.json(myProducts);
-    } catch (err) {
-      console.error('Get my products error:', err);
-      res.status(500).json({ error: 'Failed to fetch my products' });
-    }
-  };
-  
+  try {
+    const product = await Product.findById(req.params.id).populate('owner', 'username email');
+    if (!product) return res.status(404).json({ error: 'Product not found' });
+    res.json(product);
+  } catch (err) {
+    console.error('Get product by ID error:', err);
+    res.status(500).json({ error: 'Failed to fetch product' });
+  }
+};
+
+// 👤 İstifadəçinin öz məhsulları
+exports.getMyProducts = async (req, res) => {
+  try {
+    const myProducts = await Product.find({ owner: req.userId });
+    res.json(myProducts);
+  } catch (err) {
+    console.error('Get my products error:', err);
+    res.status(500).json({ error: 'Failed to fetch my products' });
+  }
+};
+
 
 
 

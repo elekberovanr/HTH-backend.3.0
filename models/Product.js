@@ -4,8 +4,11 @@ const productSchema = new mongoose.Schema({
   title: String,
   description: String,
   image: String,
-  owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  category: { type: mongoose.Schema.Types.ObjectId, ref: 'Category' }, 
-});
+  category: String,
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User' 
+  }
+}, { timestamps: true });
 
 module.exports = mongoose.model('Product', productSchema);
