@@ -7,12 +7,8 @@ const authMiddleware = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.userId); // Düzəliş buradadır
-
-    if (!user) return res.status(401).json({ error: 'İstifadəçi tapılmadı' });
-
-    req.userId = user._id;
-    req.user = user;
+    req.userId = decoded.userId || decoded.id;
+    req.user = await User.findById(req.userId);
     next();
   } catch {
     res.status(401).json({ error: 'Token etibarsızdır' });
