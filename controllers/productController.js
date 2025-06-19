@@ -83,7 +83,7 @@ exports.updateProduct = async (req, res) => {
 // 🔍 Məhsul detalları (ID ilə)
 exports.getProductById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate('owner', 'username email');
+    const product = await Product.findById(req.params.id).populate('user', 'username email');
     if (!product) return res.status(404).json({ error: 'Product not found' });
     res.json(product);
   } catch (err) {
@@ -95,7 +95,7 @@ exports.getProductById = async (req, res) => {
 // 👤 İstifadəçinin öz məhsulları
 exports.getMyProducts = async (req, res) => {
   try {
-    const myProducts = await Product.find({ owner: req.userId });
+    const myProducts = await Product.find({ user: req.userId });
     res.json(myProducts);
   } catch (err) {
     console.error('Get my products error:', err);

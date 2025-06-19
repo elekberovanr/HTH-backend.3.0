@@ -12,6 +12,7 @@ const register = async (req, res) => {
     if (existingUser) return res.status(400).json({ error: 'Email artıq mövcuddur' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const profileImage = req.file ? req.file.filename : 'Default-User.png';
 
     const user = new User({
       name,
@@ -20,7 +21,7 @@ const register = async (req, res) => {
       gender,
       birthday,
       city,
-      profileImage: req.file ? req.file.filename : null
+      profileImage
     });
 
     await user.save();
@@ -65,17 +66,28 @@ const getMe = async (req, res) => {
 // 🛠️ Profil yeniləmə
 const updateUser = async (req, res) => {
   try {
-    const updates = req.body;
+    const userId = req.userId;
+    const { name, city, gender, birthday } = req.body;
+
+    const updateData = {
+      name,
+      city,
+      gender,
+      birthday,
+    };
+
     if (req.file) {
-      updates.profileImage = req.file.filename;
+      updateData.profileImage = req.file.filename;
     }
 
-    const user = await User.findByIdAndUpdate(req.userId, updates, { new: true }).select('-password');
-    res.json(user);
+    const updated = await User.findByIdAndUpdate(userId, updateData, { new: true });
+    res.status(200).json(updated);
   } catch (err) {
-    res.status(500).json({ error: 'Profil yenilənmədi' });
+    console.error('Update error:', err);
+    res.status(500).json({ message: 'Failed to update profile' });
   }
 };
+
 
 // 📩 Forgot Password
 const forgotPassword = async (req, res) => {
@@ -139,6 +151,10 @@ const resetPassword = async (req, res) => {
     res.status(500).json({ error: 'Şifrə dəyişdirilə bilmədi' });
   }
 };
+
+
+
+
 
 module.exports = {
   register,
