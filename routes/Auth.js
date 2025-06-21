@@ -12,6 +12,11 @@ const {
 
 const authMiddleware = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
+const adminMiddleware = require('../middleware/adminMiddleware');
+
+router.post('/admin-only', authMiddleware, adminMiddleware, (req, res) => {
+  res.send('Salam Admin!');
+});
 
 // Register və login
 router.post('/register', upload.single('profileImage'), register);

@@ -11,6 +11,10 @@ const chatRoutes = require('./routes/Chat');
 const paymentRoutes = require('./routes/Payment');
 const categoryRoutes = require('./routes/Category');
 const userRoutes = require('./routes/User');
+const adminRoutes = require('./routes/Admin');
+
+
+
 
 const app = express();
 const server = http.createServer(app);
@@ -88,6 +92,7 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ✅ MongoDB connection
 mongoose.connect(process.env.MONGO_URI)

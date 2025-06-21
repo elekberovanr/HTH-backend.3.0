@@ -13,6 +13,10 @@ const userSchema = new mongoose.Schema({
   },
   resetCodeExpires: {
     type: Date
+  },
+  isAdmin: {
+    type: Boolean,
+    default: false
   }
 
 }, { timestamps: true });

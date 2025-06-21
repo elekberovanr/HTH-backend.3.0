@@ -26,7 +26,13 @@ const register = async (req, res) => {
 
     await user.save();
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // ✅ isAdmin əlavə olunur:
+    const token = jwt.sign(
+      { userId: user._id, isAdmin: user.isAdmin },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.status(201).json({ token, user });
   } catch (err) {
     console.error('Qeydiyyat zamanı xəta:', err);
@@ -45,7 +51,13 @@ const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ error: 'Parol yanlışdır' });
 
-    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    // ✅ isAdmin əlavə olunur:
+    const token = jwt.sign(
+      { userId: user._id, isAdmin: user.isAdmin },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     res.json({ token, user });
   } catch (err) {
     res.status(500).json({ error: 'Server xətası' });
@@ -88,7 +100,6 @@ const updateUser = async (req, res) => {
   }
 };
 
-
 // 📩 Forgot Password
 const forgotPassword = async (req, res) => {
   try {
@@ -101,10 +112,6 @@ const forgotPassword = async (req, res) => {
     user.resetCodeExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    console.log('Kod:', code);
-    console.log('EMAIL_USER:', process.env.EMAIL_USER);
-    console.log('EMAIL_PASS:', process.env.EMAIL_PASS);
-
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
@@ -112,9 +119,6 @@ const forgotPassword = async (req, res) => {
         pass: process.env.EMAIL_PASS,
       },
     });
-
-
-
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
@@ -151,10 +155,6 @@ const resetPassword = async (req, res) => {
     res.status(500).json({ error: 'Şifrə dəyişdirilə bilmədi' });
   }
 };
-
-
-
-
 
 module.exports = {
   register,
