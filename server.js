@@ -4,22 +4,19 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
-const chatRoutes = require('./routes/Chat');
-const paymentRoutes = require('./routes/Payment');
-const categoryRoutes = require('./routes/Category');
-const userRoutes = require('./routes/User');
-const adminRoutes = require('./routes/Admin');
-
-
-
+const chatRoutes = require('./routes/chat');
+const paymentRoutes = require('./routes/payment');
+const categoryRoutes = require('./routes/category');
+const userRoutes = require('./routes/user');
+const adminRoutes = require('./routes/admin');
+const favoriteRoutes = require('./routes/favorite');
 
 const app = express();
 const server = http.createServer(app);
-
-// ✅ PORT
 const PORT = process.env.PORT || 5555;
 
 // ✅ SOCKET.IO QURULUM
@@ -46,19 +43,28 @@ io.on('connection', (socket) => {
   });
 
   socket.on('sendMessage', (message) => {
-    io.to(message.chat).emit('newMessage', message);
+    socket.to(message.chat).emit('newMessage', message); 
   });
 
   socket.on('deleteMessage', ({ msgId, chatId }) => {
     io.to(chatId).emit('messageDeleted', msgId);
   });
-
+  
   socket.on('disconnect', () => {
     console.log('❌ Bağlantı qopdu:', socket.id);
   });
+
+  socket.on('typing', (chatId) => {
+    socket.to(chatId).emit('typing', chatId);
+  });
+
+  socket.on('stopTyping', (chatId) => {
+    socket.to(chatId).emit('stopTyping', chatId);
+  });
+
 });
 
-// 🌍 Export IO (əgər route-larda istifadə etmək istəsən)
+
 module.exports.io = io;
 
 // ✅ MIDDLEWARE
@@ -83,7 +89,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ✅ ROUTES
 app.use('/api/auth', authRoutes);
@@ -93,13 +99,17 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/favorites', favoriteRoutes);
 
-// ✅ MongoDB connection
-mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('✅ MongoDB bağlantısı quruldu'))
-  .catch((err) => console.error('❌ Mongo səhvi:', err));
-
-// ✅ Serveri başladırıq — YALNIZ server.listen
-server.listen(PORT, () => {
-  console.log(`🚀 Server ${PORT} portunda işə düşdü`);
+// ✅ MongoDB Connection
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => {
+  console.log('✅ MongoDB bağlantısı quruldu');
+  server.listen(PORT, () => {
+    console.log(`🚀 Server ${PORT} portunda işə düşdü`);
+  });
+}).catch((err) => {
+  console.error('❌ Mongo bağlantı xətası:', err);
 });

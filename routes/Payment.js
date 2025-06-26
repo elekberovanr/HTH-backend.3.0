@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/authMiddleware');
-const { createPayment, getMyPayments } = require('../controllers/paymentController');
+const { verifyToken } = require('../middleware/authMiddleware');
+const paymentController = require('../controllers/paymentController');
 
-router.post('/', auth, createPayment);
-router.get('/my', auth, getMyPayments);
+// Ödəniş et
+router.post('/', verifyToken, paymentController.createPayment);
+
+// Öz ödənişlərini al
+router.get('/', verifyToken, paymentController.getMyPayments);
 
 module.exports = router;

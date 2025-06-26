@@ -1,5 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const { verifyToken } = require('../middleware/authMiddleware');
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
+
 const {
   register,
   login,
@@ -9,24 +13,16 @@ const {
   resetPassword,
 } = require('../controllers/authController');
 
-
-const authMiddleware = require('../middleware/authMiddleware');
-const upload = require('../middleware/upload');
-const adminMiddleware = require('../middleware/adminMiddleware');
-
-router.post('/admin-only', authMiddleware, adminMiddleware, (req, res) => {
-  res.send('Salam Admin!');
-});
-
-// Register və login
-router.post('/register', upload.single('profileImage'), register);
+// 🔐 Qeydiyyat və Giriş
 router.post('/login', login);
+router.post('/register', upload.single('profileImage'), register);
 
-// Profil
-router.get('/me', authMiddleware, getMe);
-router.put('/update', authMiddleware, upload.single('profileImage'), updateUser);
 
-// Şifrə sıfırlama
+// 👤 Profil məlumatları
+router.get('/me', verifyToken, getMe);
+router.put('/me', verifyToken, upload.single('profileImage'), updateUser);
+
+// 🔁 Şifrə sıfırlama
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 

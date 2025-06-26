@@ -15,18 +15,19 @@ exports.startChat = async (req, res) => {
   }
 };
 
-// Bütün chatləri al
+// ✅ Bütün chatləri al – sonuncu yazışmaya görə sırala
 exports.getUserChats = async (req, res) => {
   try {
     const chats = await Chat.find({ participants: req.params.userId })
-      .populate('participants', 'username profileImage');
+      .populate('participants', 'username name profileImage')
+      .sort({ updatedAt: -1 }); 
     res.json(chats);
   } catch (err) {
     res.status(500).json({ error: 'Chatləri almaqda xəta' });
   }
 };
 
-// Mesaj əlavə et
+// ✅ Mesaj əlavə et və chat güncəllə
 exports.sendMessage = async (req, res) => {
   const { chatId, content } = req.body;
   try {
@@ -35,25 +36,28 @@ exports.sendMessage = async (req, res) => {
       sender: req.userId,
       content
     });
-    await message.populate('sender', 'username profileImage');
+
+    await message.populate('sender', 'username name profileImage');
+    await Chat.findByIdAndUpdate(chatId, { updatedAt: new Date() }); // 🟢 chat güncəllənir
+
     res.json(message);
   } catch (err) {
     res.status(500).json({ error: 'Mesaj göndərmək mümkün olmadı' });
   }
 };
 
-// Mesajları al
+// ✅ Mesajları al
 exports.getMessages = async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })
-      .populate('sender', 'username profileImage');
+      .populate('sender', 'username name profileImage');
     res.json(messages);
   } catch (err) {
     res.status(500).json({ error: 'Mesajlar alınmadı' });
   }
 };
 
-// Mesaj sil
+// ✅ Mesaj sil
 exports.deleteMessage = async (req, res) => {
   try {
     const message = await Message.findById(req.params.id);

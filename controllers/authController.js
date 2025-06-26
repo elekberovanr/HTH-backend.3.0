@@ -6,39 +6,53 @@ const nodemailer = require('nodemailer');
 // 🔐 Register
 const register = async (req, res) => {
   try {
+    console.log('🔵 Gələn req.body:', req.body);
+    console.log('🟣 Gələn req.file:', req.file);
+
     const { name, email, password, gender, birthday, city } = req.body;
 
+    if (!name || !email || !password || !gender || !birthday || !city) {
+      console.log('❌ Boş sahə var');
+      return res.status(400).json({ error: 'Bütün sahələr doldurulmalıdır' });
+    }
+
     const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ error: 'Email artıq mövcuddur' });
+    if (existingUser) {
+      console.log('⚠️ Eyni email tapıldı');
+      return res.status(400).json({ error: 'Email artıq mövcuddur' });
+    }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const profileImage = req.file ? req.file.filename : 'Default-User.png';
+    const profileImage = req.file?.filename || 'Default-User.png';
 
     const user = new User({
       name,
       email,
       password: hashedPassword,
       gender,
-      birthday,
+      birthday: new Date(birthday),
       city,
-      profileImage
+      profileImage,
     });
 
     await user.save();
 
-    // ✅ isAdmin əlavə olunur:
     const token = jwt.sign(
       { userId: user._id, isAdmin: user.isAdmin },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
+    console.log('✅ İstifadəçi qeydiyyatdan keçdi:', user.email);
     res.status(201).json({ token, user });
+
   } catch (err) {
-    console.error('Qeydiyyat zamanı xəta:', err);
+    console.error('❌ SERVER ERROR:', err.message);
+    console.error('🛠 Stack:', err.stack);
     res.status(500).json({ error: 'Server xətası baş verdi' });
   }
 };
+
 
 // 🔑 Login
 const login = async (req, res) => {
@@ -75,13 +89,13 @@ const getMe = async (req, res) => {
   }
 };
 
-// 🛠️ Profil yeniləmə
+
 const updateUser = async (req, res) => {
   try {
     const userId = req.userId;
     const { name, city, gender, birthday } = req.body;
 
-    const updateData = {
+    const updatedData = {
       name,
       city,
       gender,
@@ -89,14 +103,17 @@ const updateUser = async (req, res) => {
     };
 
     if (req.file) {
-      updateData.profileImage = req.file.filename;
+      updatedData.profileImage = req.file.filename;
     }
 
-    const updated = await User.findByIdAndUpdate(userId, updateData, { new: true });
-    res.status(200).json(updated);
+    const updatedUser = await User.findByIdAndUpdate(userId, updatedData, {
+      new: true,
+    });
+
+    res.status(200).json(updatedUser);
   } catch (err) {
-    console.error('Update error:', err);
-    res.status(500).json({ message: 'Failed to update profile' });
+    console.error('Profile update error:', err);
+    res.status(500).json({ message: 'Profil yenilənmədi' });
   }
 };
 

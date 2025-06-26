@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const authMiddleware = require('../middleware/authMiddleware');
+const { verifyToken } = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
 
 const {
@@ -9,27 +9,35 @@ const {
   deleteProduct,
   updateProduct,
   getProductById,
-  getMyProducts
+  getMyProducts,
+  getProductsByUser,
+  getProductsByCategory
 } = require('../controllers/productController');
 
-// Yeni məhsul (şəkil ilə)
+// 🔼 Yeni məhsul əlavə et 
+router.post('/', verifyToken, upload.array('image', 10), addProduct);
 
-router.post('/', authMiddleware, upload.single('image'), addProduct);
+// ✏️ Redaktə et 
+router.put('/:id', verifyToken, upload.array('images', 10), updateProduct);
 
-router.put('/:id', authMiddleware, upload.single('image'), updateProduct);
-
-// Bütün məhsullar
+// 📥 Bütün məhsullar
 router.get('/', getProducts);
 
+// 👤 Öz məhsullarım
+router.get('/my/products', verifyToken, getMyProducts);
+router.get('/my', verifyToken, getMyProducts); 
 
+// 👤 İstifadəçiyə aid məhsullar
+router.get('/user/:userId', getProductsByUser);
 
-// İstifadəçinin öz məhsulları
-router.get('/my/products', authMiddleware, getMyProducts);
+router.get('/products/my', verifyToken, getMyProducts);
 
+// 🔍 Tək məhsul detayı
 router.get('/:id', getProductById);
 
-// Redaktə və 🗑 Silmək
-router.put('/:id', authMiddleware, updateProduct);
-router.delete('/:id', authMiddleware, deleteProduct);
+// 🗑 Məhsulu sil
+router.delete('/:id', verifyToken, deleteProduct);
+
+router.get('/category/:category', getProductsByCategory);
 
 module.exports = router;
