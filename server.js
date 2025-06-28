@@ -6,6 +6,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 
+// Routes
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const chatRoutes = require('./routes/chat');
@@ -14,6 +15,7 @@ const categoryRoutes = require('./routes/category');
 const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
 const favoriteRoutes = require('./routes/favorite');
+const supportRoutes = require('./routes/support');
 
 const app = express();
 const server = http.createServer(app);
@@ -30,28 +32,51 @@ const io = new Server(server, {
       'http://localhost:5177',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
-  }
+    credentials: true,
+  },
+});
+exports.io = io; // 🔁 controller üçün lazım olacaq
+
+// ✅ SUPPORT USERS (object kimi global saxlanılır)
+const supportUsers = require('./supportUsers'); // {} object
+
+// ✅ SUPPORT NAMESPACE SOCKET
+const supportNamespace = io.of('/support');
+
+supportNamespace.on('connection', (socket) => {
+  console.log('📞 Yeni support bağlantısı:', socket.id);
+
+  socket.on('registerSupportUser', (userId) => {
+    supportUsers[userId] = socket.id;
+    console.log(`🔗 user ${userId} qoşuldu (support socket)`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('❌ Support bağlantısı qopdu:', socket.id);
+
+    for (const [userId, socketId] of Object.entries(supportUsers)) {
+      if (socketId === socket.id) {
+        delete supportUsers[userId];
+        break;
+      }
+    }
+  });
 });
 
-// ✅ SOCKET.IO ƏMƏLİYYATLARI
+// ✅ ƏLAVƏ CHAT SOCKET (əgər istifadə olunursa)
 io.on('connection', (socket) => {
-  console.log('🔌 Yeni bağlantı:', socket.id);
+  console.log('🔌 Yeni ümumi socket bağlantı:', socket.id);
 
   socket.on('joinRoom', (chatId) => {
     socket.join(chatId);
   });
 
   socket.on('sendMessage', (message) => {
-    socket.to(message.chat).emit('newMessage', message); 
+    socket.to(message.chat).emit('newMessage', message);
   });
 
   socket.on('deleteMessage', ({ msgId, chatId }) => {
     io.to(chatId).emit('messageDeleted', msgId);
-  });
-  
-  socket.on('disconnect', () => {
-    console.log('❌ Bağlantı qopdu:', socket.id);
   });
 
   socket.on('typing', (chatId) => {
@@ -62,10 +87,10 @@ io.on('connection', (socket) => {
     socket.to(chatId).emit('stopTyping', chatId);
   });
 
+  socket.on('disconnect', () => {
+    console.log('❌ Chat socket bağlantısı qopdu:', socket.id);
+  });
 });
-
-
-module.exports.io = io;
 
 // ✅ MIDDLEWARE
 app.use(cors({
@@ -100,15 +125,18 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/favorites', favoriteRoutes);
+app.use('/api/support', supportRoutes);
 
-// ✅ MongoDB Connection
+
+
+// ✅ MongoDB CONNECTION
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(() => {
-  console.log('✅ MongoDB bağlantısı quruldu');
+  console.log('✅ MongoDB bağlantısı uğurludur');
   server.listen(PORT, () => {
-    console.log(`🚀 Server ${PORT} portunda işə düşdü`);
+    console.log(`🚀 Server ${PORT} portunda işləyir`);
   });
 }).catch((err) => {
   console.error('❌ Mongo bağlantı xətası:', err);

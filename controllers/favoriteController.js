@@ -4,11 +4,16 @@ const Favorite = require('../models/Favorite');
 exports.getFavorites = async (req, res) => {
   try {
     const favorites = await Favorite.find({ user: req.userId }).populate('product');
-    res.json(favorites);
+
+    // Null olan product-ları filter et
+    const validFavorites = favorites.filter(fav => fav.product !== null);
+
+    res.json(validFavorites);
   } catch (err) {
-    res.status(500).json({ error: 'Favoritləri almaqda xəta baş verdi' });
+    res.status(500).json({ error: 'Favoritlər alınmadı' });
   }
 };
+
 
 // ➕ Favoritə əlavə et
 exports.addFavorite = async (req, res) => {

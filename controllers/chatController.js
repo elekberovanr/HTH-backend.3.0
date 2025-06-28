@@ -1,74 +1,138 @@
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
+const User = require('../models/User');
 
-// Yeni chat başlat
 exports.startChat = async (req, res) => {
-  const { receiverId } = req.body;
-  try {
-    let chat = await Chat.findOne({ participants: { $all: [req.userId, receiverId] } });
-    if (!chat) {
-      chat = await Chat.create({ participants: [req.userId, receiverId] });
-    }
-    res.json(chat);
-  } catch (err) {
-    res.status(500).json({ error: 'Chat yaratmaq mümkün olmadı' });
+  const senderId = req.userId;
+  const receiverId = req.body.receiverId;
+
+  let chat = await Chat.findOne({
+    participants: { $all: [senderId, receiverId] },
+  });
+
+  if (!chat) {
+    chat = await Chat.create({ participants: [senderId, receiverId] });
   }
+
+  res.status(200).json(chat);
 };
 
-// ✅ Bütün chatləri al – sonuncu yazışmaya görə sırala
+
 exports.getUserChats = async (req, res) => {
   try {
-    const chats = await Chat.find({ participants: req.params.userId })
+    const userId = req.params.userId;
+
+    const chats = await Chat.find({
+      participants: userId,
+    })
       .populate('participants', 'username name profileImage')
-      .sort({ updatedAt: -1 }); 
-    res.json(chats);
+      .sort({ updatedAt: -1 });
+
+    const result = await Promise.all(
+      chats.map(async (chat) => {
+        const lastMessage = await Message.findOne({ chat: chat._id })
+          .sort({ createdAt: -1 })
+          .populate('sender', 'username name profileImage');
+
+        const unreadCount = chat.unreadCounts?.[userId] || 0;
+
+        return {
+          ...chat.toObject(),
+          lastMessage,
+          unreadCount,
+        };
+      })
+    );
+
+    res.json(result);
   } catch (err) {
-    res.status(500).json({ error: 'Chatləri almaqda xəta' });
+    res.status(500).json({ error: 'Chatləri almaqda xəta baş verdi' });
   }
 };
 
-// ✅ Mesaj əlavə et və chat güncəllə
-exports.sendMessage = async (req, res) => {
-  const { chatId, content } = req.body;
+exports.getChat = async (req, res) => {
   try {
+    const chat = await Chat.findById(req.params.id)
+      .populate('participants', 'username name profileImage');
+
+    if (!chat) return res.status(404).json({ message: 'Chat tapılmadı' });
+
+    res.json(chat);
+  } catch (err) {
+    res.status(500).json({ error: 'Xəta baş verdi' });
+  }
+};
+
+exports.sendMessage = async (req, res) => {
+  try {
+    const { chatId, content } = req.body;
+    const image = req.file?.filename; // multer-dən gəlir
+
     const message = await Message.create({
       chat: chatId,
       sender: req.userId,
-      content
+      content: content || '',
+      image: image || '',
+      read: false,
     });
 
     await message.populate('sender', 'username name profileImage');
-    await Chat.findByIdAndUpdate(chatId, { updatedAt: new Date() }); // 🟢 chat güncəllənir
 
-    res.json(message);
+    const chat = await Chat.findById(chatId);
+    chat.updatedAt = new Date();
+
+    // unread count
+    chat.participants.forEach(pId => {
+      const idStr = pId.toString();
+      if (idStr !== req.userId) {
+        if (!chat.unreadCounts) chat.unreadCounts = {};
+        chat.unreadCounts[idStr] = (chat.unreadCounts?.[idStr] || 0) + 1;
+      }
+    });
+
+    await chat.save();
+
+    res.status(201).json(message);
   } catch (err) {
-    res.status(500).json({ error: 'Mesaj göndərmək mümkün olmadı' });
+    console.error("Mesaj göndərilmə xətası:", err);
+    res.status(500).json({ error: "Mesaj göndərilmədi" });
   }
 };
 
-// ✅ Mesajları al
+
 exports.getMessages = async (req, res) => {
   try {
     const messages = await Message.find({ chat: req.params.chatId })
-      .populate('sender', 'username name profileImage');
+      .populate('sender', 'username name profileImage')
+      .sort({ createdAt: 1 });
+
     res.json(messages);
   } catch (err) {
     res.status(500).json({ error: 'Mesajlar alınmadı' });
   }
 };
 
-// ✅ Mesaj sil
+exports.markMessagesAsRead = async (req, res) => {
+  const { userId } = req.params;
+  const { chatId } = req.body;
+
+  try {
+    await Message.updateMany(
+      { chat: chatId, sender: { $ne: userId }, read: false },
+      { $set: { read: true } }
+    );
+    res.json({ message: 'Oxunmuş kimi qeyd olundu' });
+  } catch (err) {
+    res.status(500).json({ error: 'Oxunma xətası' });
+  }
+};
+
+
 exports.deleteMessage = async (req, res) => {
   try {
-    const message = await Message.findById(req.params.id);
-    if (!message) return res.status(404).json({ error: 'Mesaj tapılmadı' });
-
-    const senderId = message.sender._id ? message.sender._id.toString() : message.sender.toString();
-    if (senderId !== req.userId) return res.status(403).json({ error: 'İcazə yoxdur' });
-
-    await message.deleteOne();
-    res.json({ success: true });
+    await Message.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Mesaj silindi' });
   } catch (err) {
-    res.status(500).json({ error: 'Silinmə zamanı xəta baş verdi' });
+    res.status(500).json({ error: 'Mesaj silinə bilmədi' });
   }
 };

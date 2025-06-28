@@ -6,6 +6,7 @@ const adminMiddleware = async (req, res, next) => {
     if (!user || !user.isAdmin) {
       return res.status(403).json({ error: 'Bu əməliyyatı yerinə yetirməyə icazəniz yoxdur' });
     }
+    req.isAdmin = true;
     next();
   } catch (err) {
     console.error('Admin yoxlaması xətası:', err);
