@@ -26,7 +26,7 @@ exports.addProduct = async (req, res) => {
 exports.getProducts = async (req, res) => {
   try {
     const products = await Product.find()
-      .populate('user', 'name name profileImage') // burada 'username' əlavə olundu
+      .populate('user', 'name username email profileImage')// burada 'username' əlavə olundu
       .populate('category', 'name')
       .sort({ createdAt: -1 });
 

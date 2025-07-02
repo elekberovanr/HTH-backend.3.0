@@ -77,7 +77,7 @@ exports.getSupportMessagesWithUser = async (req, res) => {
 exports.sendSupportMessage = async (req, res) => {
   try {
     const { content } = req.body;
-    const file = req.file;
+    const files = req.files; // ✅ array of files
 
     let receiverId;
     if (req.user.isAdmin && req.params.userId) {
@@ -88,11 +88,13 @@ exports.sendSupportMessage = async (req, res) => {
       receiverId = admin._id;
     }
 
+    const imagePaths = files?.map(file => file.filename) || []; // ✅ filenames array
+
     const newMessage = await SupportMessage.create({
       sender: req.userId,
       receiver: receiverId,
       content: content || '',
-      image: file ? file.filename : null,
+      image: imagePaths,
       isAdmin: !!req.user.isAdmin,
     });
 

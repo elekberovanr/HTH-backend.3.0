@@ -89,33 +89,29 @@ const getMe = async (req, res) => {
   }
 };
 
-
 const updateUser = async (req, res) => {
   try {
     const userId = req.userId;
     const { name, city, gender, birthday } = req.body;
 
-    const updatedData = {
-      name,
-      city,
-      gender,
-      birthday,
-    };
+    const updatedData = { name, city, gender, birthday };
 
-    if (req.file) {
-      updatedData.profileImage = req.file.filename;
+    if (req.files?.profileImage && req.files.profileImage[0]) {
+      updatedData.profileImage = req.files.profileImage[0].filename;
     }
 
-    const updatedUser = await User.findByIdAndUpdate(userId, updatedData, {
-      new: true,
-    });
+    if (req.files?.bannerImage && req.files.bannerImage[0]) {
+      updatedData.bannerImage = req.files.bannerImage[0].filename;
+    }
 
+    const updatedUser = await User.findByIdAndUpdate(userId, updatedData, { new: true });
     res.status(200).json(updatedUser);
   } catch (err) {
     console.error('Profile update error:', err);
     res.status(500).json({ message: 'Profil yenilənmədi' });
   }
 };
+
 
 // 📩 Forgot Password
 const forgotPassword = async (req, res) => {

@@ -8,17 +8,11 @@ const userSchema = new mongoose.Schema({
   gender: { type: String },
   city: { type: String },
   profileImage: { type: String },
-  resetCode: {
-    type: String
-  },
-  resetCodeExpires: {
-    type: Date
-  },
-  isAdmin: {
-    type: Boolean,
-    default: false
-  }
-
+  bannerImage: { type: String }, 
+  resetCode: { type: String },
+  resetCodeExpires: { type: Date },
+  isAdmin: { type: Boolean, default: false }
 }, { timestamps: true });
+
 
 module.exports = mongoose.model('User', userSchema);

@@ -2,14 +2,11 @@ const express = require('express');
 const router = express.Router();
 const { verifyToken } = require('../middleware/authMiddleware');
 const admin = require('../middleware/adminMiddleware');
-const { getAllUsers } = require('../controllers/userController'); // ✅ düz ad
-
+const { getAllUsers } = require('../controllers/userController');
 const User = require('../models/User');
 
-// ✅ Admin: bütün istifadəçiləri al
 router.get('/', verifyToken, admin, getAllUsers);
 
-// ✅ Tək istifadəçi profili (public)
 router.get('/:id', async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');

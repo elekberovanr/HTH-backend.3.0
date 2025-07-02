@@ -3,25 +3,16 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const http = require('http');
-const { Server } = require('socket.io');
 const path = require('path');
+const { Server } = require('socket.io');
+const supportUsers = require('./supportUsers');
 
-// Routes
-const authRoutes = require('./routes/auth');
-const productRoutes = require('./routes/products');
-const chatRoutes = require('./routes/chat');
-const paymentRoutes = require('./routes/payment');
-const categoryRoutes = require('./routes/category');
-const userRoutes = require('./routes/user');
-const adminRoutes = require('./routes/admin');
-const favoriteRoutes = require('./routes/favorite');
-const supportRoutes = require('./routes/support');
-
+// Express və HTTP server qurulur
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5555;
 
-// ✅ SOCKET.IO QURULUM
+// ✅ SOCKET.IO
 const io = new Server(server, {
   cors: {
     origin: [
@@ -30,17 +21,17 @@ const io = new Server(server, {
       'http://localhost:5175',
       'http://localhost:5176',
       'http://localhost:5177',
+      'http://localhost:5178',
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     credentials: true,
   },
 });
-exports.io = io; // 🔁 controller üçün lazım olacaq
+exports.io = io;
 
-// ✅ SUPPORT USERS (object kimi global saxlanılır)
-const supportUsers = require('./supportUsers'); // {} object
-
-// ✅ SUPPORT NAMESPACE SOCKET
+//////////////////////////////
+// ✅ 1. SUPPORT SOCKET
+//////////////////////////////
 const supportNamespace = io.of('/support');
 
 supportNamespace.on('connection', (socket) => {
@@ -53,7 +44,6 @@ supportNamespace.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('❌ Support bağlantısı qopdu:', socket.id);
-
     for (const [userId, socketId] of Object.entries(supportUsers)) {
       if (socketId === socket.id) {
         delete supportUsers[userId];
@@ -63,9 +53,34 @@ supportNamespace.on('connection', (socket) => {
   });
 });
 
-// ✅ ƏLAVƏ CHAT SOCKET (əgər istifadə olunursa)
+//////////////////////////////
+// ✅ 2. COMMENT SOCKET
+//////////////////////////////
+const commentNamespace = io.of('/comments');
+
+commentNamespace.on('connection', (socket) => {
+  console.log('💬 Comment socket qoşuldu:', socket.id);
+
+  socket.on('newComment', (data) => {
+    socket.broadcast.emit('newComment', data);
+  });
+
+  socket.on('deleteComment', (id) => {
+    socket.emit('deleteComment', id);         
+    socket.broadcast.emit('deleteComment', id); 
+  });
+
+  socket.on('disconnect', () => {
+    console.log('💬 Comment socket ayrıldı');
+  });
+});
+
+
+//////////////////////////////
+// ✅ 3. CHAT SOCKET
+//////////////////////////////
 io.on('connection', (socket) => {
-  console.log('🔌 Yeni ümumi socket bağlantı:', socket.id);
+  console.log('🔌 Yeni ümumi socket bağlantısı:', socket.id);
 
   socket.on('joinRoom', (chatId) => {
     socket.join(chatId);
@@ -92,7 +107,9 @@ io.on('connection', (socket) => {
   });
 });
 
+//////////////////////////////
 // ✅ MIDDLEWARE
+//////////////////////////////
 app.use(cors({
   origin: function (origin, callback) {
     const allowedOrigins = [
@@ -100,7 +117,8 @@ app.use(cors({
       'http://localhost:5174',
       'http://localhost:5175',
       'http://localhost:5176',
-      'http://localhost:5177'
+      'http://localhost:5177',
+      'http://localhost:5178'
     ];
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -116,7 +134,20 @@ app.use(cors({
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+//////////////////////////////
 // ✅ ROUTES
+//////////////////////////////
+const authRoutes = require('./routes/auth');
+const productRoutes = require('./routes/products');
+const chatRoutes = require('./routes/chat');
+const paymentRoutes = require('./routes/payment');
+const categoryRoutes = require('./routes/category');
+const userRoutes = require('./routes/user');
+const adminRoutes = require('./routes/admin');
+const favoriteRoutes = require('./routes/favorite');
+const supportRoutes = require('./routes/support');
+const commentRoutes = require('./routes/comment');
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/chat', chatRoutes);
@@ -126,10 +157,12 @@ app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/comments', commentRoutes);
+app.use(cors());
 
-
-
-// ✅ MongoDB CONNECTION
+//////////////////////////////
+// ✅ MONGODB CONNECTION
+//////////////////////////////
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true

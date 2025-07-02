@@ -20,7 +20,17 @@ router.post('/register', upload.single('profileImage'), register);
 
 // 👤 Profil məlumatları
 router.get('/me', verifyToken, getMe);
-router.put('/me', verifyToken, upload.single('profileImage'), updateUser);
+router.put(
+  '/me',
+  verifyToken,
+  upload.fields([
+    { name: 'profileImage', maxCount: 1 },
+    { name: 'bannerImage', maxCount: 1 }
+  ]),
+  updateUser
+);
+
+
 
 // 🔁 Şifrə sıfırlama
 router.post('/forgot-password', forgotPassword);
