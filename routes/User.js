@@ -5,8 +5,8 @@ const admin = require('../middleware/adminMiddleware');
 const { getAllUsers } = require('../controllers/userController');
 const User = require('../models/User');
 
+router.get('/public', getAllUsers); // 🔓 Bu sadəcə profil listi üçündür
 router.get('/', verifyToken, admin, getAllUsers);
-
 router.get('/:id', async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');

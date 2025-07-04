@@ -11,7 +11,8 @@ const {
   getProductById,
   getMyProducts,
   getProductsByUser,
-  getProductsByCategory
+  getProductsByCategory,
+  getLatestProducts
 } = require('../controllers/productController');
 
 // 🔼 Yeni məhsul əlavə et 
@@ -22,6 +23,8 @@ router.put('/:id', verifyToken, upload.array('images', 10), updateProduct);
 
 // 📥 Bütün məhsullar
 router.get('/', getProducts);
+
+router.get('/latest', getLatestProducts);
 
 // 👤 Öz məhsullarım
 router.get('/my/products', verifyToken, getMyProducts);

@@ -26,7 +26,7 @@ exports.addProduct = async (req, res) => {
 exports.getProducts = async (req, res) => {
   try {
     const products = await Product.find()
-      .populate('user', 'name username email profileImage')// burada 'username' əlavə olundu
+      .populate('user', 'name username email profileImage')
       .populate('category', 'name')
       .sort({ createdAt: -1 });
 
@@ -35,6 +35,24 @@ exports.getProducts = async (req, res) => {
     res.status(500).json({ error: 'Məhsullar alınmadı' });
   }
 };
+
+exports.getLatestProducts = async (req, res) => {
+  try {
+    const latest = await Product.find({ user: { $exists: true } }) 
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .populate('user', 'name profileImage');
+
+    console.log('LATEST PRODUCTS:', latest);
+    res.json(latest);
+  } catch (err) {
+    console.error('Error fetching latest products:', err);
+    res.status(500).json({ message: 'Failed to fetch latest products' });
+  }
+};
+
+
+
 
 
 // ✅ DELETE
@@ -69,8 +87,8 @@ exports.updateProduct = async (req, res) => {
     const updated = await Product.findByIdAndUpdate(req.params.id, updatedData, {
       new: true,
     })
-    .populate('user', 'name profileImage')
-    .populate('category', 'name');
+      .populate('user', 'name profileImage')
+      .populate('category', 'name');
 
     res.json(updated);
   } catch (err) {
@@ -118,7 +136,8 @@ exports.getMyProducts = async (req, res) => {
 exports.getProductsByUser = async (req, res) => {
   try {
     const { userId } = req.params;
-    const products = await Product.find({ user: userId }).populate('category');
+    const products = await Product.find({ user: userId }).populate('category')
+    .populate('user', 'name profileImage');
     res.status(200).json(products);
   } catch (err) {
     res.status(500).json({ message: 'İstifadəçi məhsulları alınmadı', error: err.message });

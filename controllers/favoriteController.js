@@ -1,13 +1,17 @@
 const Favorite = require('../models/Favorite');
 
-// 🔍 Favoritləri al
 exports.getFavorites = async (req, res) => {
   try {
-    const favorites = await Favorite.find({ user: req.userId }).populate('product');
+    const favorites = await Favorite.find({ user: req.userId })
+      .populate({
+        path: 'product',
+        populate: {
+          path: 'user',
+          select: 'name profileImage'
+        }
+      });
 
-    // Null olan product-ları filter et
     const validFavorites = favorites.filter(fav => fav.product !== null);
-
     res.json(validFavorites);
   } catch (err) {
     res.status(500).json({ error: 'Favoritlər alınmadı' });
@@ -15,7 +19,6 @@ exports.getFavorites = async (req, res) => {
 };
 
 
-// ➕ Favoritə əlavə et
 exports.addFavorite = async (req, res) => {
   try {
     const { productId } = req.body;
@@ -32,7 +35,6 @@ exports.addFavorite = async (req, res) => {
   }
 };
 
-// ❌ Favoritdən sil
 exports.removeFavorite = async (req, res) => {
   try {
     const { productId } = req.params;

@@ -1,112 +1,89 @@
 const SupportMessage = require('../models/SupportMessage');
 const User = require('../models/User');
-const supportUsers = require('../supportUsers');
+const { io } = require('../server'); 
 
-const getNamespace = () => {
-  const io = require('../server').io;
-  return io.of('/support');
-};
-
-// 🟣 USER: Öz mesajlarını alır
 exports.getUserSupportMessages = async (req, res) => {
   try {
     const messages = await SupportMessage.find({
-      $or: [{ sender: req.userId }, { receiver: req.userId }]
-    }).sort({ createdAt: 1 });
-
-    res.json(messages);
-  } catch (err) {
-    console.error('User support mesajı xətası:', err);
-    res.status(500).json({ error: 'Mesajlar alınmadı' });
-  }
-};
-
-exports.getAllSupportChats = async (req, res) => {
-  try {
-    const messages = await SupportMessage.find()
-      .populate('sender', 'username email profileImage')
-      .populate('receiver', 'username email profileImage')
-      .sort({ createdAt: -1 });
-
-    const grouped = {};
-
-    for (const msg of messages) {
-      const sender = msg.sender;
-      const receiver = msg.receiver;
-
-      if (!sender || !receiver) continue; // ⚠️ Boş olanları atla
-
-      const userId = msg.isAdmin
-        ? receiver._id?.toString()
-        : sender._id?.toString();
-
-      if (userId && !grouped[userId]) {
-        grouped[userId] = msg;
-      }
-    }
-
-    res.json(Object.values(grouped));
-  } catch (err) {
-    console.error('❌ Admin support chat xətası:', err);
-    res.status(500).json({ error: 'Mesajlar alınmadı' });
-  }
-};
-
-
-
-// 🔵 ADMIN: Seçilmiş userlə yazışma
-exports.getSupportMessagesWithUser = async (req, res) => {
-  try {
-    const { userId } = req.params;
-
-    const messages = await SupportMessage.find({
       $or: [
-        { sender: userId, receiver: req.userId },
-        { sender: req.userId, receiver: userId }
+        { sender: req.user.id },
+        { receiver: req.user.id }
       ]
-    }).sort({ createdAt: 1 });
+    })
+      .populate('sender', 'name username profileImage')
+      .populate('receiver', 'name username profileImage')
+      .sort('createdAt');
 
     res.json(messages);
   } catch (err) {
-    console.error('Admin/user mesajları xətası:', err);
-    res.status(500).json({ error: 'Mesajlar alınmadı' });
+    res.status(500).json({ message: 'Failed to get support messages' });
   }
 };
 
-// 📨 Mesaj Göndər
+
 exports.sendSupportMessage = async (req, res) => {
   try {
     const { content } = req.body;
-    const files = req.files; // ✅ array of files
+    const images = req.files ? req.files.map(file => file.filename) : [];
 
-    let receiverId;
-    if (req.user.isAdmin && req.params.userId) {
-      receiverId = req.params.userId;
-    } else {
-      const admin = await User.findOne({ isAdmin: true });
-      if (!admin) return res.status(404).json({ error: 'Admin tapılmadı' });
-      receiverId = admin._id;
-    }
-
-    const imagePaths = files?.map(file => file.filename) || []; // ✅ filenames array
-
-    const newMessage = await SupportMessage.create({
-      sender: req.userId,
-      receiver: receiverId,
-      content: content || '',
-      image: imagePaths,
-      isAdmin: !!req.user.isAdmin,
+    const message = new SupportMessage({
+      sender: req.user.id,
+      receiver: req.user.isAdmin ? req.params.userId : null,
+      content,
+      image: images,
     });
 
-    const namespace = getNamespace();
-    const receiverSocketId = supportUsers[receiverId];
-    if (receiverSocketId) {
-      namespace.to(receiverSocketId).emit('newMessage', newMessage);
+    if (!req.user.isAdmin) {
+      const admin = await User.findOne({ isAdmin: true });
+      if (admin) message.receiver = admin._id;
     }
 
-    res.status(201).json(newMessage);
+    await message.save();
+
+    const populated = await SupportMessage.findById(message._id)
+      .populate('sender', 'name profileImage isAdmin')
+      .populate('receiver', 'name profileImage isAdmin');
+
+    io.of('/support').emit('newMessage', populated);
+    res.status(201).json(populated);
   } catch (err) {
-    console.error('Support mesaj xətası:', err);
-    res.status(500).json({ error: 'Mesaj göndərilmədi' });
+    console.error('Error sending message:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+
+exports.getAllSupportChats = async (req, res) => {
+  try {
+    const messages = await SupportMessage.find();
+    const users = new Set();
+
+    messages.forEach((msg) => {
+      if (msg.sender && !msg.sender.equals(req.user.id)) users.add(msg.sender.toString());
+      if (msg.receiver && !msg.receiver.equals(req.user.id)) users.add(msg.receiver.toString());
+    });
+
+    const userList = await User.find({ _id: { $in: [...users] } }, 'name username email profileImage');
+    res.json(userList);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get chat users' });
+  }
+};
+
+exports.getSupportMessagesWithUser = async (req, res) => {
+  try {
+    const messages = await SupportMessage.find({
+      $or: [
+        { sender: req.params.userId },
+        { receiver: req.params.userId }
+      ]
+    })
+      .populate('sender', 'name username profileImage')
+      .populate('receiver', 'name username profileImage')
+      .sort('createdAt');
+
+    res.json(messages);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to get messages with user' });
   }
 };

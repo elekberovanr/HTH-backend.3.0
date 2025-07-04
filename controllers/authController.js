@@ -2,56 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const nodemailer = require('nodemailer');
-
-// 🔐 Register
-const register = async (req, res) => {
-  try {
-    console.log('🔵 Gələn req.body:', req.body);
-    console.log('🟣 Gələn req.file:', req.file);
-
-    const { name, email, password, gender, birthday, city } = req.body;
-
-    if (!name || !email || !password || !gender || !birthday || !city) {
-      console.log('❌ Boş sahə var');
-      return res.status(400).json({ error: 'Bütün sahələr doldurulmalıdır' });
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      console.log('⚠️ Eyni email tapıldı');
-      return res.status(400).json({ error: 'Email artıq mövcuddur' });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const profileImage = req.file?.filename || 'Default-User.png';
-
-    const user = new User({
-      name,
-      email,
-      password: hashedPassword,
-      gender,
-      birthday: new Date(birthday),
-      city,
-      profileImage,
-    });
-
-    await user.save();
-
-    const token = jwt.sign(
-      { userId: user._id, isAdmin: user.isAdmin },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    console.log('✅ İstifadəçi qeydiyyatdan keçdi:', user.email);
-    res.status(201).json({ token, user });
-
-  } catch (err) {
-    console.error('❌ SERVER ERROR:', err.message);
-    console.error('🛠 Stack:', err.stack);
-    res.status(500).json({ error: 'Server xətası baş verdi' });
-  }
-};
+const axios = require('axios');
 
 
 // 🔑 Login
@@ -166,6 +117,62 @@ const resetPassword = async (req, res) => {
     res.json({ message: 'Şifrə yeniləndi' });
   } catch (err) {
     res.status(500).json({ error: 'Şifrə dəyişdirilə bilmədi' });
+  }
+};
+
+// 🔐 REGISTER with reCAPTCHA
+const register = async (req, res) => {
+  try {
+    const { name, email, password, gender, birthday, city, captcha } = req.body;
+
+    // ✅ 1. Check missing fields
+    if (!name || !email || !password || !gender || !birthday || !city || !captcha) {
+      return res.status(400).json({ error: 'Bütün sahələr doldurulmalıdır və captcha təsdiqlənməlidir.' });
+    }
+
+    // ✅ 2. Validate captcha with Google
+    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${captcha}`;
+    const { data } = await axios.post(verifyUrl);
+
+    if (!data.success || data.score < 0.5) {
+      return res.status(400).json({ error: 'Captcha təsdiqlənmədi. Zəhmət olmasa yenidən cəhd edin.' });
+    }
+
+    // ✅ 3. Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Bu email ilə artıq istifadəçi mövcuddur' });
+    }
+
+    // ✅ 4. Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const profileImage = req.file?.filename || 'Default-User.png';
+
+    // ✅ 5. Create user
+    const user = new User({
+      name,
+      email,
+      password: hashedPassword,
+      gender,
+      birthday: new Date(birthday),
+      city,
+      profileImage,
+    });
+
+    await user.save();
+
+    // ✅ 6. Create token
+    const token = jwt.sign(
+      { userId: user._id, isAdmin: user.isAdmin },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    res.status(201).json({ token, user });
+
+  } catch (err) {
+    console.error('❌ Register error:', err.message);
+    res.status(500).json({ error: 'Server xətası baş verdi' });
   }
 };
 

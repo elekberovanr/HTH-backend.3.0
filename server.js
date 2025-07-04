@@ -42,6 +42,10 @@ supportNamespace.on('connection', (socket) => {
     console.log(`🔗 user ${userId} qoşuldu (support socket)`);
   });
 
+  socket.on('newMessage', (message) => {
+    socket.broadcast.emit('newMessage', message);
+  });
+
   socket.on('disconnect', () => {
     console.log('❌ Support bağlantısı qopdu:', socket.id);
     for (const [userId, socketId] of Object.entries(supportUsers)) {
@@ -66,8 +70,8 @@ commentNamespace.on('connection', (socket) => {
   });
 
   socket.on('deleteComment', (id) => {
-    socket.emit('deleteComment', id);         
-    socket.broadcast.emit('deleteComment', id); 
+    socket.emit('deleteComment', id);
+    socket.broadcast.emit('deleteComment', id);
   });
 
   socket.on('disconnect', () => {
