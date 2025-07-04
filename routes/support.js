@@ -18,5 +18,9 @@ router.post('/', verifyToken, upload.array('image', 5), controller.sendSupportMe
 
 router.get('/admin', verifyToken, isAdmin, controller.getAllSupportChats);
 router.get('/admin/:userId', verifyToken, isAdmin, controller.getSupportMessagesWithUser);
+router.put('/read/:userId', verifyToken, controller.markSupportMessagesAsRead);
+router.put('/mark-read/:userId', verifyToken, controller.markSupportMessagesAsRead);
+
+
 
 module.exports = router;

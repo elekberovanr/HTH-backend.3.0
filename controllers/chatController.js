@@ -1,6 +1,7 @@
 const Chat = require('../models/Chat');
 const Message = require('../models/Message');
 const User = require('../models/User');
+const { io } = require('../server');
 
 exports.startChat = async (req, res) => {
   const senderId = req.userId;
@@ -13,10 +14,8 @@ exports.startChat = async (req, res) => {
   if (!chat) {
     chat = await Chat.create({ participants: [senderId, receiverId] });
   }
-
   res.status(200).json(chat);
 };
-
 
 exports.getUserChats = async (req, res) => {
   try {
@@ -66,7 +65,7 @@ exports.getChat = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const { chatId, content } = req.body;
-    const image = req.file?.filename; // multer-dən gəlir
+    const image = req.file?.filename;
 
     const message = await Message.create({
       chat: chatId,
@@ -81,16 +80,22 @@ exports.sendMessage = async (req, res) => {
     const chat = await Chat.findById(chatId);
     chat.updatedAt = new Date();
 
-    // unread count
     chat.participants.forEach(pId => {
       const idStr = pId.toString();
       if (idStr !== req.userId) {
         if (!chat.unreadCounts) chat.unreadCounts = {};
-        chat.unreadCounts[idStr] = (chat.unreadCounts?.[idStr] || 0) + 1;
+        chat.unreadCounts[idStr] = (chat.unreadCounts[idStr] || 0) + 1;
       }
     });
 
     await chat.save();
+
+    // ✅ Real-time emit with unreadCounts
+    io.to(chatId).emit('newMessage', {
+      ...message.toObject(),
+      chatId,
+      unreadCounts: chat.unreadCounts
+    });
 
     res.status(201).json(message);
   } catch (err) {
@@ -98,6 +103,7 @@ exports.sendMessage = async (req, res) => {
     res.status(500).json({ error: "Mesaj göndərilmədi" });
   }
 };
+
 
 
 exports.getMessages = async (req, res) => {
@@ -121,11 +127,18 @@ exports.markMessagesAsRead = async (req, res) => {
       { chat: chatId, sender: { $ne: userId }, read: false },
       { $set: { read: true } }
     );
+    const chat = await Chat.findById(chatId);
+    if (chat?.unreadCounts?.[userId]) {
+      chat.unreadCounts[userId] = 0;
+      await chat.save();
+    }
+
     res.json({ message: 'Oxunmuş kimi qeyd olundu' });
   } catch (err) {
     res.status(500).json({ error: 'Oxunma xətası' });
   }
 };
+
 
 
 exports.deleteMessage = async (req, res) => {

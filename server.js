@@ -7,7 +7,6 @@ const path = require('path');
 const { Server } = require('socket.io');
 const supportUsers = require('./supportUsers');
 
-// Express və HTTP server qurulur
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5555;
@@ -79,7 +78,6 @@ commentNamespace.on('connection', (socket) => {
   });
 });
 
-
 //////////////////////////////
 // ✅ 3. CHAT SOCKET
 //////////////////////////////
@@ -88,10 +86,7 @@ io.on('connection', (socket) => {
 
   socket.on('joinRoom', (chatId) => {
     socket.join(chatId);
-  });
-
-  socket.on('sendMessage', (message) => {
-    socket.to(message.chat).emit('newMessage', message);
+    console.log(`🟢 Chat otağına qoşuldu: ${chatId}`);
   });
 
   socket.on('deleteMessage', ({ msgId, chatId }) => {
@@ -162,7 +157,6 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/comments', commentRoutes);
-app.use(cors());
 
 //////////////////////////////
 // ✅ MONGODB CONNECTION
