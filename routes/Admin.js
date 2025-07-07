@@ -11,7 +11,7 @@ const {
 const User = require('../models/User');
 const Product = require('../models/Product');
 const Category = require('../models/Category');
-const Payment = require('../models/Payment');
+const Payment = require('../models/Donation');
 
 // ✅ Admin statistikaları
 router.get('/stats', verifyToken, adminMiddleware, async (req, res) => {
@@ -34,6 +34,24 @@ router.get('/stats', verifyToken, adminMiddleware, async (req, res) => {
     res.status(500).json({ error: 'Statistika alınmadı' });
   }
 });
+router.get('/payments', verifyToken, adminMiddleware, async (req, res) => {
+  try {
+    const donations = await Payment.find()
+      .sort({ createdAt: -1 })
+      .populate('user', 'name email');
+
+    const total = donations.reduce((acc, d) => acc + d.amount, 0);
+
+    res.json({
+      donations,
+      total
+    });
+  } catch (err) {
+    console.error('Admin payments xətası:', err);
+    res.status(500).json({ error: 'Ianələri yükləmək olmadı' });
+  }
+});
+
 
 // ✅ Məhsulu sil
 router.delete('/delete-product/:id', verifyToken, adminMiddleware, async (req, res) => {

@@ -20,6 +20,9 @@ router.get('/admin', verifyToken, isAdmin, controller.getAllSupportChats);
 router.get('/admin/:userId', verifyToken, isAdmin, controller.getSupportMessagesWithUser);
 router.put('/read/:userId', verifyToken, controller.markSupportMessagesAsRead);
 router.put('/mark-read/:userId', verifyToken, controller.markSupportMessagesAsRead);
+router.put('/toggle-status/:id', controller.toggleTicketStatus);
+
+
 
 
 

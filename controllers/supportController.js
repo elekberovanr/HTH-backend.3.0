@@ -1,7 +1,6 @@
 const SupportMessage = require('../models/SupportMessage');
 const User = require('../models/User');
-const { io } = require('../server'); 
-
+const { io } = require('../server');
 exports.getUserSupportMessages = async (req, res) => {
   try {
     const messages = await SupportMessage.find({
@@ -14,7 +13,9 @@ exports.getUserSupportMessages = async (req, res) => {
       .populate('receiver', 'name username profileImage')
       .sort('createdAt');
 
-    res.json(messages);
+    const isClosed = messages.length > 0 ? messages[0].closed : false;
+
+    res.json({ messages, isClosed });
   } catch (err) {
     res.status(500).json({ message: 'Failed to get support messages' });
   }
@@ -31,6 +32,18 @@ exports.sendSupportMessage = async (req, res) => {
     if (!req.user.isAdmin) {
       const admin = await User.findOne({ isAdmin: true });
       if (admin) receiverId = admin._id;
+    }
+
+    // Ən son mesajı tap və əgər ticket bağlıdırsa göndərmə
+    const lastMessage = await SupportMessage.findOne({
+      $or: [
+        { sender: senderId, receiver: receiverId },
+        { sender: receiverId, receiver: senderId }
+      ]
+    }).sort({ createdAt: -1 });
+
+    if (lastMessage?.closed) {
+      return res.status(403).json({ message: 'Ticket is closed' });
     }
 
     const message = new SupportMessage({
@@ -58,8 +71,6 @@ exports.sendSupportMessage = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
-
 
 exports.getAllSupportChats = async (req, res) => {
   try {
@@ -97,7 +108,6 @@ exports.getAllSupportChats = async (req, res) => {
   }
 };
 
-
 exports.getSupportMessagesWithUser = async (req, res) => {
   try {
     const messages = await SupportMessage.find({
@@ -110,16 +120,17 @@ exports.getSupportMessagesWithUser = async (req, res) => {
       .populate('receiver', 'name username profileImage')
       .sort('createdAt');
 
-    res.json(messages);
+    const isClosed = messages.length > 0 ? messages[0].closed : false;
+
+    res.json({ messages, isClosed });
   } catch (err) {
     res.status(500).json({ message: 'Failed to get messages with user' });
   }
 };
 
-
 exports.markSupportMessagesAsRead = async (req, res) => {
-  const { userId } = req.params; // oxuyan şəxs
-  const { chatWith } = req.body; // qarşı tərəf
+  const { userId } = req.params;
+  const { chatWith } = req.body;
 
   try {
     await SupportMessage.updateMany(
@@ -140,3 +151,42 @@ exports.markSupportMessagesAsRead = async (req, res) => {
   }
 };
 
+exports.toggleTicketStatus = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const messages = await SupportMessage.find({
+      $or: [{ sender: id }, { receiver: id }],
+    }).sort({ createdAt: -1 });
+
+    if (!messages.length) {
+      return res.status(404).json({ message: 'Chat not found' });
+    }
+
+    const latest = messages[0];
+    latest.closed = !latest.closed;
+    await latest.save();
+
+    // Qarşı tərəfə socket ilə bildiriş göndər
+    const notifyUser = latest.sender.toString() === id ? latest.receiver : latest.sender;
+    io.of('/support').to(notifyUser.toString()).emit('ticketStatusChanged', {
+      closed: latest.closed,
+    });
+
+    // Əgər ticket bağlandısa 1 saat sonra istifadəçidən silinsin
+    if (latest.closed) {
+      setTimeout(async () => {
+        try {
+          await SupportMessage.deleteMany({
+            $or: [{ sender: id }, { receiver: id }],
+          });
+        } catch (e) {
+          console.error('Mesajları silmək mümkün olmadı:', e.message);
+        }
+      }, 3600000); // 1 saat = 3600000 ms
+    }
+    res.status(200).json({ message: 'Ticket status updated', closed: latest.closed });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+};

@@ -139,24 +139,25 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const chatRoutes = require('./routes/chat');
-const paymentRoutes = require('./routes/payment');
 const categoryRoutes = require('./routes/category');
 const userRoutes = require('./routes/user');
 const adminRoutes = require('./routes/admin');
 const favoriteRoutes = require('./routes/favorite');
 const supportRoutes = require('./routes/support');
 const commentRoutes = require('./routes/comment');
+const donationRoutes = require('./routes/donation');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/chat', chatRoutes);
-app.use('/api/payment', paymentRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/support', supportRoutes);
 app.use('/api/comments', commentRoutes);
+app.use('/api/donations', donationRoutes);
+app.use('/api/admin', adminRoutes); 
 
 //////////////////////////////
 // ✅ MONGODB CONNECTION
