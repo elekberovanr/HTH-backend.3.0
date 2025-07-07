@@ -147,7 +147,7 @@ const supportRoutes = require('./routes/support');
 const commentRoutes = require('./routes/comment');
 const donationRoutes = require('./routes/donation');
 
-app.use('/api/auth', authRoutes);
+app.use('/api/auth.js', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/categories', categoryRoutes);
