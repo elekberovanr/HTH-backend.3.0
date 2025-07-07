@@ -136,18 +136,18 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 //////////////////////////////
 // ✅ ROUTES
 //////////////////////////////
-const authRoutes = require('./routes/auth');
-const productRoutes = require('./routes/products');
-const chatRoutes = require('./routes/chat');
-const categoryRoutes = require('./routes/category');
-const userRoutes = require('./routes/user');
-const adminRoutes = require('./routes/admin');
-const favoriteRoutes = require('./routes/favorite');
-const supportRoutes = require('./routes/support');
-const commentRoutes = require('./routes/comment');
-const donationRoutes = require('./routes/donation');
+const authRoutes = require('./routes/auth.js');
+const productRoutes = require('./routes/products.js');
+const chatRoutes = require('./routes/chat.js');
+const categoryRoutes = require('./routes/category.js');
+const userRoutes = require('./routes/user.js');
+const adminRoutes = require('./routes/admin.js');
+const favoriteRoutes = require('./routes/favorite.js');
+const supportRoutes = require('./routes/support.js');
+const commentRoutes = require('./routes/comment.js');
+const donationRoutes = require('./routes/donation.js');
 
-app.use('/api/auth.js', authRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/categories', categoryRoutes);
