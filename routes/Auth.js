@@ -31,8 +31,6 @@ router.put(
 );
 
 
-
-// 🔁 Şifrə sıfırlama
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 

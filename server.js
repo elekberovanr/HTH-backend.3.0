@@ -81,6 +81,9 @@ commentNamespace.on('connection', (socket) => {
 //////////////////////////////
 // ✅ 3. CHAT SOCKET
 //////////////////////////////
+//////////////////////////////
+// ✅ 3. CHAT SOCKET
+//////////////////////////////
 io.on('connection', (socket) => {
   console.log('🔌 Yeni ümumi socket bağlantısı:', socket.id);
 
@@ -101,10 +104,16 @@ io.on('connection', (socket) => {
     socket.to(chatId).emit('stopTyping', chatId);
   });
 
+  // ✅ Əlavə etdiyimiz sendMessage event
+  socket.on('sendMessage', (msg) => {
+    io.to(msg.receiverId).emit('newMessage', msg);
+  });
+
   socket.on('disconnect', () => {
     console.log('❌ Chat socket bağlantısı qopdu:', socket.id);
   });
 });
+
 
 //////////////////////////////
 // ✅ MIDDLEWARE

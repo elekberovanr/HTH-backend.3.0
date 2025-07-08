@@ -21,33 +21,37 @@ exports.getUserChats = async (req, res) => {
   try {
     const userId = req.params.userId;
 
-    const chats = await Chat.find({
-      participants: userId,
-    })
-      .populate('participants', 'username name profileImage')
-      .sort({ updatedAt: -1 });
+    const chats = await Chat.find({ participants: userId })
+      .populate('participants', 'name username profileImage')
+      .lean();
 
-    const result = await Promise.all(
+    const enrichedChats = await Promise.all(
       chats.map(async (chat) => {
         const lastMessage = await Message.findOne({ chat: chat._id })
           .sort({ createdAt: -1 })
-          .populate('sender', 'username name profileImage');
+          .lean();
 
-        const unreadCount = chat.unreadCounts?.[userId] || 0;
+        chat.latestMessage = lastMessage || null;
 
-        return {
-          ...chat.toObject(),
-          lastMessage,
-          unreadCount,
-        };
+        const unreadCount = await Message.countDocuments({
+          chat: chat._id,
+          receiver: userId,
+          read: false,
+        });
+
+        chat.unreadCount = unreadCount;
+        return chat;
       })
     );
 
-    res.json(result);
+    res.json(enrichedChats);
   } catch (err) {
-    res.status(500).json({ error: 'Chatləri almaqda xəta baş verdi' });
+    console.error('❌ Failed to fetch chats:', err);
+    res.status(500).json({ message: 'Failed to fetch chats' });
   }
 };
+
+
 
 exports.getChat = async (req, res) => {
   try {
@@ -61,7 +65,6 @@ exports.getChat = async (req, res) => {
     res.status(500).json({ error: 'Xəta baş verdi' });
   }
 };
-
 exports.sendMessage = async (req, res) => {
   try {
     const { chatId, content } = req.body;
@@ -79,6 +82,7 @@ exports.sendMessage = async (req, res) => {
 
     const chat = await Chat.findById(chatId);
     chat.updatedAt = new Date();
+    chat.latestMessage = message._id; // ✅ Əlavə olundu!
 
     chat.participants.forEach(pId => {
       const idStr = pId.toString();
@@ -90,7 +94,7 @@ exports.sendMessage = async (req, res) => {
 
     await chat.save();
 
-    // ✅ Real-time emit with unreadCounts
+    // ✅ Emit message + updated unreadCount
     io.to(chatId).emit('newMessage', {
       ...message.toObject(),
       chatId,
@@ -103,6 +107,7 @@ exports.sendMessage = async (req, res) => {
     res.status(500).json({ error: "Mesaj göndərilmədi" });
   }
 };
+
 
 
 

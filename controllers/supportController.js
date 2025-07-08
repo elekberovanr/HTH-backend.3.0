@@ -71,42 +71,61 @@ exports.sendSupportMessage = async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 };
-
 exports.getAllSupportChats = async (req, res) => {
   try {
     const adminId = req.user.id;
-    const messages = await SupportMessage.find();
-    const users = new Set();
+    const messages = await SupportMessage.find().sort({ createdAt: -1 });
 
-    messages.forEach((msg) => {
-      if (msg.sender && !msg.sender.equals(adminId)) users.add(msg.sender.toString());
-      if (msg.receiver && !msg.receiver.equals(adminId)) users.add(msg.receiver.toString());
-    });
+    const users = new Map(); // key: userId, value: { lastMessage, unreadCount }
 
-    const userList = await User.find(
-      { _id: { $in: [...users] } },
-      'name username email profileImage'
-    );
+    for (const msg of messages) {
+      const senderId = msg.sender?.toString();
+      const receiverId = msg.receiver?.toString();
 
-    const userData = await Promise.all(
-      userList.map(async (user) => {
+      const otherUserId =
+        senderId === adminId ? receiverId :
+        receiverId === adminId ? senderId : null;
+
+      if (!otherUserId) continue;
+
+      if (!users.has(otherUserId)) {
         const unreadCount = await SupportMessage.countDocuments({
           $or: [
-            { sender: user._id, receiver: adminId },
-            { sender: adminId, receiver: user._id }
+            { sender: otherUserId, receiver: adminId },
+            { sender: adminId, receiver: otherUserId }
           ],
           [`unreadCounts.${adminId}`]: { $gt: 0 }
         });
-        return { ...user.toObject(), unreadCount };
-      })
+
+        users.set(otherUserId, {
+          lastMessage: msg,
+          unreadCount
+        });
+      }
+    }
+
+    const userIds = [...users.keys()];
+    const userList = await User.find(
+      { _id: { $in: userIds } },
+      'name username email profileImage'
     );
 
-    res.json(userData);
+    const response = userList.map((user) => {
+      const info = users.get(user._id.toString());
+      return {
+        ...user.toObject(),
+        unreadCount: info?.unreadCount || 0,
+        lastMessage: info?.lastMessage || null
+      };
+    });
+
+    res.json(response);
   } catch (err) {
     console.error('getAllSupportChats error:', err);
     res.status(500).json({ message: 'Failed to get chat users' });
   }
 };
+
 
 exports.getSupportMessagesWithUser = async (req, res) => {
   try {
